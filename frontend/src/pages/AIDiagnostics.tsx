@@ -3,14 +3,15 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { aiApi, plantsApi } from '../services/api';
-import type { LLMProvider, PromptType } from '../types';
+import { aiApi, plantsApi, settingsApi } from '../services/api';
+import type { LLMProvider, PromptType, Plant } from '../types';
 
 const PROMPT_TYPES: { value: PromptType; label: string; emoji: string; desc: string }[] = [
-  { value: 'diagnosis', label: 'Diagnose', emoji: '🔍', desc: 'Identify health issues from description or photo' },
-  { value: 'identification', label: 'Identify', emoji: '🌿', desc: 'Identify plant species from photo or description' },
-  { value: 'care_advice', label: 'Care Advice', emoji: '📚', desc: 'Get personalized care recommendations' },
-  { value: 'general', label: 'General Q&A', emoji: '💬', desc: 'Ask any plant-related question' },
+  { value: 'diagnosis',      label: 'Diagnose',      emoji: '🔍', desc: 'Identify health issues from description or photo' },
+  { value: 'identification', label: 'Identify',      emoji: '🌿', desc: 'Identify plant species from photo or description' },
+  { value: 'pest_treatment', label: 'Pest & Disease', emoji: '🐛', desc: 'Identify pests/disease and get a treatment plan' },
+  { value: 'care_advice',    label: 'Care Advice',   emoji: '📚', desc: 'Personalized care plan with weather context' },
+  { value: 'general',        label: 'General Q&A',   emoji: '💬', desc: 'Ask any plant-related question' },
 ];
 
 const PROVIDERS: { value: LLMProvider | 'auto'; label: string; emoji: string }[] = [
@@ -37,6 +38,15 @@ export default function AIDiagnostics() {
     queryKey: ['plants'],
     queryFn: () => plantsApi.list(),
   });
+
+  const { data: health } = useQuery({
+    queryKey: ['health'],
+    queryFn: settingsApi.health,
+    staleTime: 60_000,
+  });
+
+  const selectedPlant = plantId ? (plants as Plant[]).find((p) => p.id === plantId) : undefined;
+  const hasWeather = !!health?.weather;
 
   const { data: providerStatus } = useQuery({
     queryKey: ['ai-providers'],
@@ -173,6 +183,23 @@ export default function AIDiagnostics() {
                 </select>
               </div>
 
+              {/* Context indicators */}
+              {(selectedPlant || hasWeather) && (
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {selectedPlant && (
+                    <span className="flex items-center gap-1 px-2 py-1 bg-plant-50 text-plant-700 rounded-full border border-plant-200">
+                      🌱 <strong>{selectedPlant.name}</strong> context included
+                      <span className="text-plant-400">· {selectedPlant.health_status} · {selectedPlant.plant_type ?? 'unknown type'}</span>
+                    </span>
+                  )}
+                  {hasWeather && (
+                    <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+                      🌤 {health!.weather!.temperature}°F · {health!.weather!.description} · {health!.weather!.humidity}% humidity
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* AI provider */}
               <div>
                 <label className="label">AI Provider</label>
@@ -207,6 +234,8 @@ export default function AIDiagnostics() {
                       ? 'Describe symptoms: yellowing leaves, brown spots, wilting...'
                       : promptType === 'identification'
                       ? 'Describe the plant: leaf shape, color, size, texture...'
+                      : promptType === 'pest_treatment'
+                      ? 'Describe what you see: tiny bugs, webbing, sticky residue, holes in leaves...'
                       : promptType === 'care_advice'
                       ? 'Tell me about your plant and environment...'
                       : 'Ask any plant question...'

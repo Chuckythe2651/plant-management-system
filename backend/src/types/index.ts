@@ -28,6 +28,8 @@ export interface Plant {
   scientific_name?: string;
   location_id?: number;
   location?: Location;
+  location_name?: string;
+  location_type?: string;
   plant_type?: string;
   health_status: HealthStatus;
   watering_frequency_days: number;
@@ -62,7 +64,7 @@ export interface CareLog {
 }
 
 export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'openrouter';
-export type PromptType = 'diagnosis' | 'identification' | 'care_advice' | 'general';
+export type PromptType = 'diagnosis' | 'identification' | 'care_advice' | 'pest_treatment' | 'general';
 
 export interface LLMInteraction {
   id: number;

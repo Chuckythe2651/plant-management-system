@@ -1,21 +1,12 @@
 import axios from 'axios';
 import { PromptType } from '../types';
+import { SYSTEM_PROMPTS } from './aiPrompts';
 
 interface LLMResult {
   response: string;
   model: string;
   tokensUsed?: number;
   costEstimate?: number;
-}
-
-function buildPrompt(promptType: PromptType, userInput: string): string {
-  const prefixes: Record<PromptType, string> = {
-    diagnosis: 'As an expert botanist, diagnose the plant health issue described below. Provide: observed issues, likely causes, immediate actions, and prevention.\n\n',
-    identification: 'As an expert botanist, identify this plant. Provide: common name, scientific name, family, native region, and basic care requirements.\n\n',
-    care_advice: 'As an expert botanist, provide detailed care advice for this plant: watering, sunlight, soil, fertilizing, seasonal tips, and common problems.\n\n',
-    general: 'As an expert botanist, answer this plant-related question:\n\n',
-  };
-  return prefixes[promptType] + userInput;
 }
 
 export async function callOllama(
@@ -25,9 +16,11 @@ export async function callOllama(
   userInput: string,
   imageBase64?: string
 ): Promise<LLMResult> {
+  const systemPrompt = SYSTEM_PROMPTS[promptType];
   const body: Record<string, unknown> = {
     model,
-    prompt: buildPrompt(promptType, userInput || 'Describe what you see.'),
+    system: systemPrompt,
+    prompt: userInput || 'Please analyze this plant.',
     stream: false,
   };
 
@@ -44,7 +37,7 @@ export async function callOllama(
     response: res.data.response ?? '',
     model,
     tokensUsed: (res.data.prompt_eval_count ?? 0) + (res.data.eval_count ?? 0),
-    costEstimate: 0, // local — no cost
+    costEstimate: 0,
   };
 }
 

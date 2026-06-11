@@ -3,10 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import { SettingModel } from '../models/Setting';
 import { LlmInteractionModel } from '../models/LlmInteraction';
+import { PlantModel } from '../models/Plant';
 import { callAnthropic, isAnthropicAvailable } from '../services/anthropicService';
 import { callOpenAI, isOpenAIAvailable } from '../services/openaiService';
 import { callOllama, isOllamaAvailable, getOllamaModels } from '../services/ollamaService';
 import { callOpenRouter, isOpenRouterAvailable } from '../services/openrouterService';
+import { getCurrentWeather } from '../services/weatherService';
+import { buildPlantContext, buildWeatherContext } from '../services/aiPrompts';
 import { AppError } from '../middleware/errorHandler';
 import { AIDiagnoseDto, LLMProvider, PromptType } from '../types';
 import { config } from '../config';
@@ -16,7 +19,7 @@ export const aiController = {
     const body = req.body as AIDiagnoseDto;
     const { plant_id, prompt_type, user_input, provider = 'auto' } = body;
 
-    // Resolve image — either from body URL or from uploaded file
+    // Resolve image from uploaded file or body URL
     let imageUrl: string | undefined = body.image_url;
     let imageBase64: string | undefined;
     let imageMime: string | undefined;
@@ -30,6 +33,28 @@ export const aiController = {
     }
 
     const settings = await SettingModel.getFullMap();
+
+    // ── Enrich prompt with plant context and weather ──────────────
+    const contextParts: string[] = [];
+
+    if (plant_id) {
+      const plant = await PlantModel.findById(Number(plant_id));
+      if (plant) contextParts.push(buildPlantContext(plant));
+    }
+
+    const weatherApiKey = settings['api.openweather_key'];
+    const lat = parseFloat(settings['location.latitude'] || '33.3062');
+    const lon = parseFloat(settings['location.longitude'] || '-111.8413');
+    if (weatherApiKey) {
+      const weather = await getCurrentWeather(weatherApiKey, lat, lon).catch(() => null);
+      if (weather) contextParts.push(buildWeatherContext(weather));
+    }
+
+    const enrichedInput = contextParts.length > 0
+      ? `${contextParts.join('\n\n')}\n\n${user_input ? `User request: ${user_input}` : 'Please analyze this plant.'}`
+      : (user_input || '');
+
+    // ─────────────────────────────────────────────────────────────
 
     const resolvedProvider = await resolveProvider(
       provider as LLMProvider | 'auto',
@@ -52,7 +77,7 @@ export const aiController = {
           settings['api.anthropic_key'],
           settings['llm.anthropic_model'] || 'claude-sonnet-4-6',
           prompt_type as PromptType,
-          user_input ?? '',
+          enrichedInput,
           imageBase64,
           imageMime
         );
@@ -68,8 +93,9 @@ export const aiController = {
           settings['api.openai_key'],
           settings['llm.openai_model'] || 'gpt-4o',
           prompt_type as PromptType,
-          user_input ?? '',
-          imageUrl
+          enrichedInput,
+          imageBase64,
+          imageMime
         );
         response = result.response;
         model = result.model;
@@ -83,8 +109,9 @@ export const aiController = {
           settings['api.openrouter_key'],
           settings['llm.openrouter_model'] || 'anthropic/claude-sonnet-4-5:beta',
           prompt_type as PromptType,
-          user_input ?? '',
-          imageUrl
+          enrichedInput,
+          imageBase64,
+          imageMime
         );
         response = result.response;
         model = result.model;
@@ -95,7 +122,7 @@ export const aiController = {
           settings['llm.ollama_base_url'] || 'http://host.docker.internal:11434',
           settings['llm.ollama_model'] || 'llava',
           prompt_type as PromptType,
-          user_input ?? '',
+          enrichedInput,
           imageBase64
         );
         response = result.response;
@@ -103,7 +130,7 @@ export const aiController = {
         tokensUsed = result.tokensUsed;
         costEstimate = 0;
       } else {
-        throw new AppError(400, `No LLM provider available. Configure API keys in Settings.`);
+        throw new AppError(400, 'No LLM provider available. Configure API keys in Settings.');
       }
     } catch (err) {
       if (err instanceof AppError) throw err;
@@ -173,7 +200,6 @@ async function resolveProvider(
   const preferred = (settings['llm.preferred_provider'] as LLMProvider) || 'anthropic';
   const ollamaUrl = settings['llm.ollama_base_url'] || 'http://host.docker.internal:11434';
 
-  // Try Ollama first for privacy if available and has vision model when image present
   const ollamaOk = await isOllamaAvailable(ollamaUrl);
   if (ollamaOk) {
     const models = await getOllamaModels(ollamaUrl);
@@ -181,20 +207,17 @@ async function resolveProvider(
     if (!hasImage || hasVision) return 'ollama';
   }
 
-  // Try the preferred provider if its key is present
   const keyMap: Record<string, string> = {
-    anthropic: settings['api.anthropic_key'],
-    openai: settings['api.openai_key'],
-    openrouter: settings['api.openrouter_key'],
+    anthropic:   settings['api.anthropic_key'],
+    openai:      settings['api.openai_key'],
+    openrouter:  settings['api.openrouter_key'],
   };
 
   if (preferred !== 'ollama' && keyMap[preferred]) return preferred as LLMProvider;
 
-  // Fall back to any configured cloud provider
   for (const p of ['anthropic', 'openai', 'openrouter'] as LLMProvider[]) {
     if (keyMap[p as string]) return p;
   }
 
-  // Nothing configured — let the handler throw a clear error
   return preferred !== 'ollama' ? (preferred as LLMProvider) : 'anthropic';
 }

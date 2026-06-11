@@ -3,7 +3,7 @@ export type SunlightRequirement = 'full_sun' | 'partial_shade' | 'indirect_light
 export type CareType = 'watering' | 'fertilizing' | 'pruning' | 'repotting' | 'pest_treatment' | 'observation' | 'other';
 export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'openrouter' | 'auto';
 export type SensorType = 'soil_moisture' | 'soil_temperature' | 'air_temperature' | 'lumens';
-export type PromptType = 'diagnosis' | 'identification' | 'care_advice' | 'general';
+export type PromptType = 'diagnosis' | 'identification' | 'care_advice' | 'pest_treatment' | 'general';
 
 export interface Location {
   id: number;
