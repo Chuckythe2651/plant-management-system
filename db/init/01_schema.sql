@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS llm_interactions (
   plant_id       INTEGER REFERENCES plants(id) ON DELETE SET NULL,
   llm_provider   VARCHAR(50)  NOT NULL CHECK (llm_provider IN ('ollama','openai','anthropic')),
   llm_model      VARCHAR(100),
-  prompt_type    VARCHAR(50)  NOT NULL CHECK (prompt_type IN ('diagnosis','identification','care_advice','general')),
+  prompt_type    VARCHAR(50)  NOT NULL CHECK (prompt_type IN ('diagnosis','identification','care_advice','pest_treatment','general')),
   user_input     TEXT,
   image_url      VARCHAR(500),
   response       TEXT,

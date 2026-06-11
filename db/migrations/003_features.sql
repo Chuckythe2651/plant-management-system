@@ -35,6 +35,14 @@ ALTER TABLE llm_interactions
   ADD CONSTRAINT llm_interactions_llm_provider_check
     CHECK (llm_provider IN ('ollama','openai','anthropic','openrouter'));
 
+-- ── Widen prompt_type CHECK to include pest_treatment ────────────
+ALTER TABLE llm_interactions
+  DROP CONSTRAINT IF EXISTS llm_interactions_prompt_type_check;
+
+ALTER TABLE llm_interactions
+  ADD CONSTRAINT llm_interactions_prompt_type_check
+    CHECK (prompt_type IN ('diagnosis','identification','care_advice','pest_treatment','general'));
+
 -- ── New Settings ─────────────────────────────────────────────────
 INSERT INTO settings (key, value, category, label, description, is_secret) VALUES
   ('api.openrouter_key',   '', 'api_keys',     'OpenRouter API Key',   'From openrouter.ai/keys', true),
