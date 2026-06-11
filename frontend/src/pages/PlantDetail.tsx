@@ -4,16 +4,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { format, formatDistanceToNow } from 'date-fns';
-import { plantsApi, careLogsApi } from '../services/api';
+import { plantsApi, careLogsApi, aiApi } from '../services/api';
 import HealthBadge from '../components/HealthBadge';
 import Modal from '../components/common/Modal';
-import type { CareLog, CareType } from '../types';
+import type { CareLog, CareType, PromptType } from '../types';
 
 const CARE_TYPES: CareType[] = ['watering', 'fertilizing', 'pruning', 'repotting', 'pest_treatment', 'observation', 'other'];
 const careEmoji: Record<string, string> = {
   watering: '💧', fertilizing: '🌱', pruning: '✂️',
   repotting: '🪴', pest_treatment: '🐛', observation: '👁', other: '📝',
 };
+
+const AI_TYPE_META: Record<PromptType, { label: string; emoji: string; pill: string; border: string }> = {
+  diagnosis:      { label: 'Diagnosis',      emoji: '🔍', pill: 'bg-red-50 text-red-700 border border-red-200',    border: 'border-l-red-400' },
+  identification: { label: 'Identification', emoji: '🌿', pill: 'bg-green-50 text-green-700 border border-green-200', border: 'border-l-green-500' },
+  care_advice:    { label: 'Care Advice',    emoji: '📚', pill: 'bg-blue-50 text-blue-700 border border-blue-200',  border: 'border-l-blue-400' },
+  pest_treatment: { label: 'Pest & Disease', emoji: '🐛', pill: 'bg-amber-50 text-amber-700 border border-amber-200', border: 'border-l-amber-400' },
+  general:        { label: 'General Q&A',    emoji: '💬', pill: 'bg-gray-100 text-gray-600 border border-gray-200', border: 'border-l-gray-400' },
+};
+
+const AI_TYPE_ORDER: PromptType[] = ['diagnosis', 'identification', 'care_advice', 'pest_treatment', 'general'];
 
 export default function PlantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +41,28 @@ export default function PlantDetail() {
     queryFn: () => careLogsApi.list(Number(id), 20),
     enabled: !!id,
   });
+
+  const { data: aiHistory = [] } = useQuery({
+    queryKey: ['ai-history', Number(id)],
+    queryFn: () => aiApi.history(Number(id), 50),
+    enabled: !!id,
+  });
+
+  const [aiFilter, setAiFilter] = useState<PromptType | 'all'>('all');
+  const [expandedAi, setExpandedAi] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (interactionId: number) =>
+    setExpandedAi((prev) => {
+      const next = new Set(prev);
+      next.has(interactionId) ? next.delete(interactionId) : next.add(interactionId);
+      return next;
+    });
+
+  const filteredAiHistory = aiFilter === 'all'
+    ? aiHistory
+    : aiHistory.filter((i) => i.prompt_type === aiFilter);
+
+  const aiTypesPresent = AI_TYPE_ORDER.filter((t) => aiHistory.some((i) => i.prompt_type === t));
 
   const { register, handleSubmit, reset } = useForm<Partial<CareLog>>();
 
@@ -233,6 +265,128 @@ export default function PlantDetail() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* AI Diagnostics History */}
+      <div className="mt-6 card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-800">AI Analysis History</h3>
+          <Link
+            to={`/ai?plant_id=${plant.id}`}
+            className="btn-primary text-xs py-1.5"
+          >
+            🤖 Run New Analysis
+          </Link>
+        </div>
+
+        {aiHistory.length === 0 ? (
+          <div className="text-center py-10 text-gray-400">
+            <div className="text-4xl mb-3">🤖</div>
+            <p className="text-sm font-medium text-gray-500">No AI analyses yet for this plant</p>
+            <p className="text-xs mt-1 mb-4">Get a diagnosis, identification, care plan, or pest treatment advice.</p>
+            <Link to={`/ai?plant_id=${plant.id}`} className="btn-primary text-sm">
+              Run First Analysis
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Filter tabs */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                onClick={() => setAiFilter('all')}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  aiFilter === 'all'
+                    ? 'bg-plant-600 text-white border-plant-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                All ({aiHistory.length})
+              </button>
+              {aiTypesPresent.map((type) => {
+                const meta = AI_TYPE_META[type];
+                const count = aiHistory.filter((i) => i.prompt_type === type).length;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setAiFilter(type)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      aiFilter === type ? meta.pill + ' font-semibold' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {meta.emoji} {meta.label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Interaction cards */}
+            <div className="space-y-3">
+              {filteredAiHistory.map((interaction) => {
+                const meta = AI_TYPE_META[interaction.prompt_type] ?? AI_TYPE_META.general;
+                const isExpanded = expandedAi.has(interaction.id);
+                const response = interaction.response ?? '';
+                const isLong = response.length > 400;
+                const displayText = isLong && !isExpanded ? response.slice(0, 400).trimEnd() + '…' : response;
+
+                return (
+                  <div
+                    key={interaction.id}
+                    className={`border-l-4 ${meta.border} bg-white rounded-r-lg border border-gray-100 p-4`}
+                  >
+                    {/* Card header */}
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${meta.pill}`}>
+                        {meta.emoji} {meta.label}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-100">
+                        {interaction.llm_provider}
+                      </span>
+                      {interaction.llm_model && (
+                        <span className="text-xs text-gray-400">{interaction.llm_model}</span>
+                      )}
+                      <span className="ml-auto text-xs text-gray-400">
+                        {formatDistanceToNow(new Date(interaction.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+
+                    {/* Original user query if present */}
+                    {interaction.user_input && (
+                      <p className="text-xs text-gray-500 italic mb-2 line-clamp-2">
+                        "{interaction.user_input}"
+                      </p>
+                    )}
+
+                    {/* AI response */}
+                    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {displayText}
+                    </div>
+
+                    {/* Expand / collapse */}
+                    {isLong && (
+                      <button
+                        onClick={() => toggleExpand(interaction.id)}
+                        className="mt-2 text-xs text-plant-600 hover:text-plant-800 font-medium"
+                      >
+                        {isExpanded ? '▲ Show less' : '▼ Read full response'}
+                      </button>
+                    )}
+
+                    {/* Token / cost footer */}
+                    {(interaction.tokens_used || Number(interaction.cost_estimate) > 0) && (
+                      <p className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-50">
+                        {interaction.tokens_used ? `${interaction.tokens_used} tokens` : ''}
+                        {Number(interaction.cost_estimate) > 0
+                          ? ` · $${Number(interaction.cost_estimate).toFixed(4)}`
+                          : interaction.tokens_used ? ' · free (local)' : ''}
+                        {interaction.duration_ms ? ` · ${(interaction.duration_ms / 1000).toFixed(1)}s` : ''}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Care log modal */}
