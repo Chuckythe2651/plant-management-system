@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { format, formatDistanceToNow } from 'date-fns';
-import { plantsApi, careLogsApi, aiApi } from '../services/api';
+import { plantsApi, careLogsApi, aiApi, uploadsApi } from '../services/api';
 import HealthBadge from '../components/HealthBadge';
 import Modal from '../components/common/Modal';
 import type { CareLog, CareType, PromptType } from '../types';
@@ -25,11 +25,26 @@ const AI_TYPE_META: Record<PromptType, { label: string; emoji: string; pill: str
 
 const AI_TYPE_ORDER: PromptType[] = ['diagnosis', 'identification', 'care_advice', 'pest_treatment', 'general'];
 
+const ANALYZE_TYPES: { value: PromptType; label: string; emoji: string }[] = [
+  { value: 'diagnosis',      label: 'Diagnosis',      emoji: '🔍' },
+  { value: 'identification', label: 'Identify',       emoji: '🌿' },
+  { value: 'pest_treatment', label: 'Pest & Disease', emoji: '🐛' },
+  { value: 'care_advice',    label: 'Care Advice',    emoji: '📚' },
+];
+
 export default function PlantDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [showCareModal, setShowCareModal] = useState(false);
+  const [showAnalyzeModal, setShowAnalyzeModal] = useState(false);
+  const [analyzeFile, setAnalyzeFile] = useState<File | null>(null);
+  const [analyzePreview, setAnalyzePreview] = useState<string | null>(null);
+  const [analyzeType, setAnalyzeType] = useState<PromptType>('diagnosis');
+  const [analyzeInput, setAnalyzeInput] = useState('');
+  const [savePlantPhoto, setSavePlantPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const analyzeFileRef = useRef<HTMLInputElement>(null);
 
   const { data: plant, isLoading } = useQuery({
     queryKey: ['plants', Number(id)],
@@ -103,6 +118,54 @@ export default function PlantDetail() {
     },
   });
 
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const { url } = await uploadsApi.upload(file);
+      return plantsApi.update(Number(id), { image_url: url });
+    },
+    onSuccess: () => {
+      toast.success('Plant photo updated');
+      qc.invalidateQueries({ queryKey: ['plants', Number(id)] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const analyzePhotoMutation = useMutation({
+    mutationFn: async () => {
+      const fd = new FormData();
+      fd.append('prompt_type', analyzeType);
+      fd.append('provider', 'auto');
+      fd.append('plant_id', String(id));
+      if (analyzeInput.trim()) fd.append('user_input', analyzeInput.trim());
+      if (analyzeFile) fd.append('image', analyzeFile);
+      const result = await aiApi.diagnose(fd);
+      if (savePlantPhoto && result.image_url) {
+        await plantsApi.update(Number(id), { image_url: result.image_url });
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Analysis complete — see AI History below');
+      qc.invalidateQueries({ queryKey: ['ai-history', Number(id)] });
+      qc.invalidateQueries({ queryKey: ['plants', Number(id)] });
+      setShowAnalyzeModal(false);
+      setAnalyzeFile(null);
+      setAnalyzePreview(null);
+      setAnalyzeInput('');
+      setSavePlantPhoto(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  function handleAnalyzeDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith('image/')) {
+      setAnalyzeFile(file);
+      setAnalyzePreview(URL.createObjectURL(file));
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -135,13 +198,47 @@ export default function PlantDetail() {
         <div className="lg:col-span-2 space-y-4">
           {/* Photo */}
           <div className="card p-0 overflow-hidden">
-            {plant.image_url ? (
-              <img src={plant.image_url} alt={plant.name} className="w-full h-56 object-cover" />
-            ) : (
-              <div className="w-full h-56 bg-gradient-to-br from-plant-100 to-plant-200 flex items-center justify-center">
-                <span className="text-7xl">🌱</span>
+            {/* Clickable photo area */}
+            <div
+              className="relative group cursor-pointer"
+              onClick={() => photoInputRef.current?.click()}
+              title="Click to change plant photo"
+            >
+              {plant.image_url ? (
+                <img src={plant.image_url} alt={plant.name} className="w-full h-56 object-cover" />
+              ) : (
+                <div className="w-full h-56 bg-gradient-to-br from-plant-100 to-plant-200 flex items-center justify-center">
+                  <span className="text-7xl">🌱</span>
+                </div>
+              )}
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {uploadPhotoMutation.isPending ? (
+                  <svg className="animate-spin w-8 h-8 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <>
+                    <span className="text-3xl">📷</span>
+                    <span className="text-white text-sm font-medium mt-1">
+                      {plant.image_url ? 'Change Photo' : 'Add Photo'}
+                    </span>
+                  </>
+                )}
               </div>
-            )}
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadPhotoMutation.mutate(file);
+                e.target.value = '';
+              }}
+            />
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <h1 className="font-bold text-xl text-gray-900">{plant.name}</h1>
@@ -172,6 +269,12 @@ export default function PlantDetail() {
                 className="btn-secondary w-full justify-center"
               >
                 📋 Log Care Event
+              </button>
+              <button
+                onClick={() => setShowAnalyzeModal(true)}
+                className="btn-secondary w-full justify-center text-sm"
+              >
+                📸 Analyze Photo
               </button>
               <Link
                 to={`/ai?plant_id=${plant.id}`}
@@ -388,6 +491,143 @@ export default function PlantDetail() {
           </>
         )}
       </div>
+
+      {/* Analyze Photo modal */}
+      {showAnalyzeModal && (
+        <Modal title="Analyze Photo" onClose={() => {
+          setShowAnalyzeModal(false);
+          setAnalyzeFile(null);
+          setAnalyzePreview(null);
+          setAnalyzeInput('');
+          setSavePlantPhoto(false);
+        }}>
+          <div className="space-y-4">
+            {/* Image drop zone */}
+            <div>
+              <label className="label">Photo *</label>
+              <div
+                onDrop={handleAnalyzeDrop}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => analyzeFileRef.current?.click()}
+                className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center cursor-pointer hover:border-plant-400 transition-colors"
+              >
+                {analyzePreview ? (
+                  <div className="relative">
+                    <img src={analyzePreview} alt="Preview" className="max-h-48 mx-auto rounded-lg object-contain" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAnalyzeFile(null);
+                        setAnalyzePreview(null);
+                      }}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold"
+                    >✕</button>
+                  </div>
+                ) : (
+                  <div className="text-gray-400 py-4">
+                    <div className="text-4xl mb-2">📸</div>
+                    <p className="text-sm font-medium">Drop a photo here or click to upload</p>
+                    <p className="text-xs mt-1">JPEG, PNG, WebP up to 10MB</p>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={analyzeFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setAnalyzeFile(file);
+                    setAnalyzePreview(URL.createObjectURL(file));
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </div>
+
+            {/* Analysis type */}
+            <div>
+              <label className="label">Analysis Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                {ANALYZE_TYPES.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setAnalyzeType(t.value)}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition-all ${
+                      analyzeType === t.value
+                        ? 'border-plant-500 bg-plant-50 text-plant-800'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="text-lg">{t.emoji}</span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Optional description */}
+            <div>
+              <label className="label">Additional Notes (optional)</label>
+              <textarea
+                value={analyzeInput}
+                onChange={(e) => setAnalyzeInput(e.target.value)}
+                className="input resize-none"
+                rows={3}
+                placeholder="Describe what you see — symptoms, location on plant, when it started..."
+              />
+            </div>
+
+            {/* Save as plant photo toggle */}
+            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+              <input
+                type="checkbox"
+                checked={savePlantPhoto}
+                onChange={(e) => setSavePlantPhoto(e.target.checked)}
+                className="w-4 h-4 rounded accent-plant-600"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Save as plant profile photo</p>
+                <p className="text-xs text-gray-400">Replaces the current plant photo with this image</p>
+              </div>
+            </label>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                disabled={!analyzeFile || analyzePhotoMutation.isPending}
+                onClick={() => analyzePhotoMutation.mutate()}
+                className="btn-primary flex-1 justify-center"
+              >
+                {analyzePhotoMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Analyzing…
+                  </span>
+                ) : `🤖 Analyze with AI`}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAnalyzeModal(false);
+                  setAnalyzeFile(null);
+                  setAnalyzePreview(null);
+                  setAnalyzeInput('');
+                  setSavePlantPhoto(false);
+                }}
+                className="btn-secondary"
+              >Cancel</button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Care log modal */}
       {showCareModal && (
