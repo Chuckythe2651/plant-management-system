@@ -181,6 +181,20 @@ async function resolveProvider(
     if (!hasImage || hasVision) return 'ollama';
   }
 
-  // Fall back to preferred cloud provider
-  return preferred !== 'ollama' ? preferred : 'anthropic';
+  // Try the preferred provider if its key is present
+  const keyMap: Record<string, string> = {
+    anthropic: settings['api.anthropic_key'],
+    openai: settings['api.openai_key'],
+    openrouter: settings['api.openrouter_key'],
+  };
+
+  if (preferred !== 'ollama' && keyMap[preferred]) return preferred as LLMProvider;
+
+  // Fall back to any configured cloud provider
+  for (const p of ['anthropic', 'openai', 'openrouter'] as LLMProvider[]) {
+    if (keyMap[p as string]) return p;
+  }
+
+  // Nothing configured — let the handler throw a clear error
+  return preferred !== 'ollama' ? (preferred as LLMProvider) : 'anthropic';
 }

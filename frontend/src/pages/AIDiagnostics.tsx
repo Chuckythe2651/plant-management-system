@@ -112,6 +112,7 @@ export default function AIDiagnostics() {
               { key: 'ollama', label: 'Ollama (Local)', available: providerStatus.ollama.available },
               { key: 'openai', label: 'OpenAI', available: providerStatus.openai.available },
               { key: 'anthropic', label: 'Anthropic Claude', available: providerStatus.anthropic.available },
+              { key: 'openrouter', label: 'OpenRouter', available: providerStatus.openrouter?.available ?? false },
             ]).map((p) => (
               <div key={p.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium
                 ${p.available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -121,7 +122,7 @@ export default function AIDiagnostics() {
               </div>
             ))}
           </div>
-          {!providerStatus.ollama.available && !providerStatus.openai.available && !providerStatus.anthropic.available && (
+          {!providerStatus.ollama.available && !providerStatus.openai.available && !providerStatus.anthropic.available && !(providerStatus.openrouter?.available) && (
             <p className="text-sm text-amber-600 mt-2">
               ⚠️ No AI providers configured. Add API keys in <a href="/settings" className="underline">Settings</a>.
             </p>

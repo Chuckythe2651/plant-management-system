@@ -59,12 +59,5 @@ export async function callOpenRouter(
 }
 
 export async function isOpenRouterAvailable(apiKey: string): Promise<boolean> {
-  if (!apiKey) return false;
-  try {
-    const client = new OpenAI({ apiKey, baseURL: OPENROUTER_BASE, defaultHeaders: DEFAULT_HEADERS });
-    await client.models.list();
-    return true;
-  } catch {
-    return false;
-  }
+  return !!apiKey;
 }
