@@ -158,7 +158,7 @@ export default function Locations() {
                 <input {...register('state')} className="input" maxLength={2} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="label">Latitude</label>
                 <input type="number" step="any" {...register('latitude', { valueAsNumber: true })} className="input" />

@@ -289,9 +289,9 @@ export default function Plants() {
           placeholder="Search plants..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="input w-48"
+          className="input w-full sm:w-48"
         />
-        <p className="text-sm text-gray-400 self-center">Drag plants between locations to reassign them.</p>
+        <p className="text-sm text-gray-400 self-center hidden sm:block">Drag plants between locations to reassign them.</p>
       </div>
 
       {isLoading ? (
@@ -338,8 +338,8 @@ export default function Plants() {
       {showModal && (
         <Modal title={editPlant ? `Edit ${editPlant.name}` : 'Add New Plant'} onClose={closeModal} size="lg">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="col-span-full">
                 <label className="label">Plant Name *</label>
                 <input {...register('name', { required: 'Name is required' })} className="input" placeholder="e.g., Monstera" />
                 {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
@@ -399,18 +399,18 @@ export default function Plants() {
                 <label className="label">Acquired Date</label>
                 <input type="date" {...register('acquired_date')} className="input" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full">
                 <label className="label">Notes</label>
                 <textarea {...register('notes')} className="input resize-none" rows={3} placeholder="Care notes, observations..." />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full">
                 <label className="label">Photo</label>
                 <input type="file" accept="image/*" onChange={handleImageChange} className="input" />
                 {imagePreview && (
                   <img src={imagePreview} alt="Preview" className="mt-2 h-24 rounded-lg object-cover" />
                 )}
               </div>
-              <div className="col-span-2 flex items-center gap-2">
+              <div className="col-span-full flex items-center gap-2">
                 <input type="checkbox" id="is_favorite" {...register('is_favorite')} className="w-4 h-4 accent-plant-600" />
                 <label htmlFor="is_favorite" className="text-sm text-gray-700">Mark as favorite</label>
               </div>

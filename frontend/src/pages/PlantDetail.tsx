@@ -438,29 +438,29 @@ export default function PlantDetail() {
                   >
                     {/* Card header */}
                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${meta.pill}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${meta.pill}`}>
                         {meta.emoji} {meta.label}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-100">
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0">
                         {interaction.llm_provider}
                       </span>
                       {interaction.llm_model && (
-                        <span className="text-xs text-gray-400">{interaction.llm_model}</span>
+                        <span className="text-xs text-gray-400 truncate min-w-0 max-w-[120px]">{interaction.llm_model}</span>
                       )}
-                      <span className="ml-auto text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 flex-shrink-0 ml-auto">
                         {formatDistanceToNow(new Date(interaction.created_at), { addSuffix: true })}
                       </span>
                     </div>
 
                     {/* Original user query if present */}
                     {interaction.user_input && (
-                      <p className="text-xs text-gray-500 italic mb-2 line-clamp-2">
+                      <p className="text-xs text-gray-500 italic mb-2 line-clamp-2 break-words">
                         "{interaction.user_input}"
                       </p>
                     )}
 
                     {/* AI response */}
-                    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words overflow-hidden">
                       {displayText}
                     </div>
 

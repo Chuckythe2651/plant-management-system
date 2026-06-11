@@ -123,10 +123,10 @@ export default function Dashboard() {
         <div className="card lg:col-span-2">
           <h2 className="font-semibold text-gray-800 mb-4">Care Activity (7 days)</h2>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+            <BarChart data={barData} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+              <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={0} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={30} />
               <Tooltip />
               <Bar dataKey="actions" fill="#22c55e" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -207,14 +207,10 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
     red: 'bg-red-50 text-red-700',
   };
   return (
-    <div className="card">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg ${colors[color]} flex items-center justify-center text-xl`}>{icon}</div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-xs text-gray-500">{label}</p>
-        </div>
-      </div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
+      <div className={`w-9 h-9 rounded-lg ${colors[color]} flex items-center justify-center text-lg mb-2`}>{icon}</div>
+      <p className="text-xl sm:text-2xl font-bold text-gray-900 tabular-nums">{value}</p>
+      <p className="text-xs text-gray-500 mt-0.5 leading-tight">{label}</p>
     </div>
   );
 }
