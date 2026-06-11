@@ -9,8 +9,13 @@ export interface Location {
   latitude: number;
   longitude: number;
   is_default: boolean;
+  parent_id?: number | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface LocationNode extends Location {
+  children: LocationNode[];
 }
 
 export type HealthStatus = 'excellent' | 'good' | 'fair' | 'poor' | 'critical' | 'unknown';
@@ -56,7 +61,7 @@ export interface CareLog {
   created_at: Date;
 }
 
-export type LLMProvider = 'ollama' | 'openai' | 'anthropic';
+export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'openrouter';
 export type PromptType = 'diagnosis' | 'identification' | 'care_advice' | 'general';
 
 export interface LLMInteraction {
@@ -133,6 +138,30 @@ export interface CreateLocationDto {
   latitude?: number;
   longitude?: number;
   is_default?: boolean;
+  parent_id?: number | null;
+}
+
+export type SensorType = 'soil_moisture' | 'soil_temperature' | 'air_temperature' | 'lumens';
+
+export interface Sensor {
+  id: number;
+  location_id?: number | null;
+  name: string;
+  sensor_type: SensorType;
+  ha_entity_id: string;
+  unit?: string;
+  last_value?: number | null;
+  last_reading_at?: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface CreateSensorDto {
+  location_id?: number | null;
+  name: string;
+  sensor_type: SensorType;
+  ha_entity_id: string;
+  unit?: string;
 }
 
 export interface CreateCareLogDto {
@@ -179,5 +208,6 @@ export interface HealthCheck {
     ollama: boolean;
     openai: boolean;
     anthropic: boolean;
+    openrouter: boolean;
   };
 }

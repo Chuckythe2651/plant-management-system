@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type {
-  Plant, Location, CareLog, LLMInteraction, Setting,
+  Plant, Location, LocationNode, CareLog, LLMInteraction, Setting, Sensor, CreateSensorDto,
   ApiResponse, HealthCheckData, ProviderStatus,
 } from '../types';
 
@@ -16,9 +16,15 @@ api.interceptors.response.use(
 
 // ── Plants ────────────────────────────────────────────────────
 export const plantsApi = {
-  list: (locationId?: number) =>
-    api.get<ApiResponse<Plant[]>>('/plants', { params: locationId ? { location_id: locationId } : {} })
-      .then((r) => r.data.data!),
+  list: (params?: { locationId?: number; search?: string; health_status?: string; plant_type?: string }) =>
+    api.get<ApiResponse<Plant[]>>('/plants', {
+      params: {
+        ...(params?.locationId ? { location_id: params.locationId } : {}),
+        ...(params?.search ? { search: params.search } : {}),
+        ...(params?.health_status ? { health_status: params.health_status } : {}),
+        ...(params?.plant_type ? { plant_type: params.plant_type } : {}),
+      },
+    }).then((r) => r.data.data!),
 
   get: (id: number) =>
     api.get<ApiResponse<Plant>>(`/plants/${id}`).then((r) => r.data.data!),
@@ -44,6 +50,9 @@ export const locationsApi = {
   list: () =>
     api.get<ApiResponse<Location[]>>('/locations').then((r) => r.data.data!),
 
+  tree: () =>
+    api.get<ApiResponse<LocationNode[]>>('/locations/tree').then((r) => r.data.data!),
+
   get: (id: number) =>
     api.get<ApiResponse<Location>>(`/locations/${id}`).then((r) => r.data.data!),
 
@@ -55,6 +64,26 @@ export const locationsApi = {
 
   delete: (id: number) =>
     api.delete(`/locations/${id}`).then((r) => r.data),
+};
+
+// ── Sensors ───────────────────────────────────────────────────
+export const sensorsApi = {
+  list: (locationId?: number) =>
+    api.get<ApiResponse<Sensor[]>>('/sensors', { params: locationId ? { location_id: locationId } : {} })
+      .then((r) => r.data.data!),
+
+  create: (data: CreateSensorDto) =>
+    api.post<ApiResponse<Sensor>>('/sensors', data).then((r) => r.data.data!),
+
+  delete: (id: number) =>
+    api.delete(`/sensors/${id}`).then((r) => r.data),
+
+  sync: (id: number) =>
+    api.post<ApiResponse<Sensor>>(`/sensors/${id}/sync`).then((r) => r.data.data!),
+
+  syncAll: () =>
+    api.post<ApiResponse<{ updated: number; failed: number; total: number }>>('/sensors/sync-all')
+      .then((r) => r.data.data!),
 };
 
 // ── Care Logs ────────────────────────────────────────────────

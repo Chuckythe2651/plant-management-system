@@ -6,6 +6,15 @@ import { plantsApi } from '../services/api';
 import HealthBadge from './HealthBadge';
 import type { Plant } from '../types';
 
+const HEALTH_BORDER: Record<string, string> = {
+  excellent: 'border-l-4 border-l-green-500',
+  good:      'border-l-4 border-l-green-400',
+  fair:      'border-l-4 border-l-yellow-400',
+  poor:      'border-l-4 border-l-red-400',
+  critical:  'border-l-4 border-l-red-600',
+  unknown:   'border-l-4 border-l-gray-300',
+};
+
 export default function PlantCard({ plant }: { plant: Plant }) {
   const qc = useQueryClient();
 
@@ -21,8 +30,10 @@ export default function PlantCard({ plant }: { plant: Plant }) {
   const nextWatering = plant.next_watering_at ? new Date(plant.next_watering_at) : null;
   const overdue = nextWatering && isPast(nextWatering);
 
+  const borderClass = HEALTH_BORDER[plant.health_status] ?? HEALTH_BORDER.unknown;
+
   return (
-    <div className="card hover:shadow-md transition-shadow">
+    <div className={`card hover:shadow-md transition-shadow ${borderClass}`}>
       {/* Image */}
       <div className="relative mb-3">
         {plant.image_url ? (

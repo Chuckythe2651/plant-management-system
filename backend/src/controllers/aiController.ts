@@ -3,11 +3,10 @@ import fs from 'fs';
 import path from 'path';
 import { SettingModel } from '../models/Setting';
 import { LlmInteractionModel } from '../models/LlmInteraction';
-import { callAnthropic } from '../services/anthropicService';
-import { callOpenAI } from '../services/openaiService';
+import { callAnthropic, isAnthropicAvailable } from '../services/anthropicService';
+import { callOpenAI, isOpenAIAvailable } from '../services/openaiService';
 import { callOllama, isOllamaAvailable, getOllamaModels } from '../services/ollamaService';
-import { isAnthropicAvailable } from '../services/anthropicService';
-import { isOpenAIAvailable } from '../services/openaiService';
+import { callOpenRouter, isOpenRouterAvailable } from '../services/openrouterService';
 import { AppError } from '../middleware/errorHandler';
 import { AIDiagnoseDto, LLMProvider, PromptType } from '../types';
 import { config } from '../config';
@@ -76,6 +75,21 @@ export const aiController = {
         model = result.model;
         tokensUsed = result.tokensUsed;
         costEstimate = result.costEstimate;
+      } else if (resolvedProvider === 'openrouter') {
+        if (!settings['api.openrouter_key']) {
+          throw new AppError(503, 'OpenRouter API key not configured. Add api.openrouter_key in Settings.');
+        }
+        const result = await callOpenRouter(
+          settings['api.openrouter_key'],
+          settings['llm.openrouter_model'] || 'anthropic/claude-sonnet-4-5:beta',
+          prompt_type as PromptType,
+          user_input ?? '',
+          imageUrl
+        );
+        response = result.response;
+        model = result.model;
+        tokensUsed = result.tokensUsed;
+        costEstimate = result.costEstimate;
       } else if (resolvedProvider === 'ollama') {
         const result = await callOllama(
           settings['llm.ollama_base_url'] || 'http://host.docker.internal:11434',
@@ -125,13 +139,14 @@ export const aiController = {
     const settings = await SettingModel.getFullMap();
     const ollamaUrl = settings['llm.ollama_base_url'] || 'http://host.docker.internal:11434';
 
-    const [ollamaOk, openaiOk, anthropicOk, ollamaModels] = await Promise.all([
+    const [ollamaOk, openaiOk, anthropicOk, openrouterOk, ollamaModels] = await Promise.all([
       isOllamaAvailable(ollamaUrl),
       isOpenAIAvailable(settings['api.openai_key']),
       isAnthropicAvailable(
         settings['api.anthropic_key'],
         settings['llm.anthropic_model'] || 'claude-sonnet-4-6'
       ),
+      isOpenRouterAvailable(settings['api.openrouter_key']),
       getOllamaModels(ollamaUrl),
     ]);
 
@@ -141,6 +156,7 @@ export const aiController = {
         ollama: { available: ollamaOk, models: ollamaModels, url: ollamaUrl },
         openai: { available: openaiOk, model: settings['llm.openai_model'] || 'gpt-4o' },
         anthropic: { available: anthropicOk, model: settings['llm.anthropic_model'] || 'claude-sonnet-4-6' },
+        openrouter: { available: openrouterOk, model: settings['llm.openrouter_model'] || 'anthropic/claude-sonnet-4-5:beta' },
         preferred: settings['llm.preferred_provider'] || 'anthropic',
       },
     });

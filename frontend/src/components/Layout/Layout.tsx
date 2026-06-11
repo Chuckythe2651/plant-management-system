@@ -7,6 +7,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
   { path: '/plants', label: 'My Plants', icon: '🌿' },
   { path: '/locations', label: 'Locations', icon: '📍' },
+  { path: '/sensors', label: 'Sensors', icon: '📡' },
   { path: '/ai', label: 'AI Diagnostics', icon: '🤖' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ];

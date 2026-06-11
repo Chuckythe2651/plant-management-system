@@ -17,6 +17,7 @@ const PROVIDERS: { value: LLMProvider | 'auto'; label: string; emoji: string }[]
   { value: 'auto', label: 'Auto', emoji: '🤖' },
   { value: 'anthropic', label: 'Claude', emoji: '🟠' },
   { value: 'openai', label: 'GPT-4o', emoji: '🟢' },
+  { value: 'openrouter', label: 'OpenRouter', emoji: '🔀' },
   { value: 'ollama', label: 'Ollama (Local)', emoji: '🔵' },
 ];
 

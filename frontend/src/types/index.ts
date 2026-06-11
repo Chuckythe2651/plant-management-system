@@ -1,7 +1,8 @@
 export type HealthStatus = 'excellent' | 'good' | 'fair' | 'poor' | 'critical' | 'unknown';
 export type SunlightRequirement = 'full_sun' | 'partial_shade' | 'indirect_light' | 'full_shade';
 export type CareType = 'watering' | 'fertilizing' | 'pruning' | 'repotting' | 'pest_treatment' | 'observation' | 'other';
-export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'auto';
+export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'openrouter' | 'auto';
+export type SensorType = 'soil_moisture' | 'soil_temperature' | 'air_temperature' | 'lumens';
 export type PromptType = 'diagnosis' | 'identification' | 'care_advice' | 'general';
 
 export interface Location {
@@ -15,8 +16,34 @@ export interface Location {
   latitude: number;
   longitude: number;
   is_default: boolean;
+  parent_id?: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface LocationNode extends Location {
+  children: LocationNode[];
+}
+
+export interface Sensor {
+  id: number;
+  location_id?: number | null;
+  name: string;
+  sensor_type: SensorType;
+  ha_entity_id: string;
+  unit?: string;
+  last_value?: number | null;
+  last_reading_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSensorDto {
+  location_id?: number | null;
+  name: string;
+  sensor_type: SensorType;
+  ha_entity_id: string;
+  unit?: string;
 }
 
 export interface Plant {
@@ -116,5 +143,6 @@ export interface ProviderStatus {
   ollama: { available: boolean; models: string[]; url: string };
   openai: { available: boolean; model: string };
   anthropic: { available: boolean; model: string };
+  openrouter: { available: boolean; model: string };
   preferred: string;
 }

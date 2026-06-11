@@ -8,6 +8,11 @@ export const locationController = {
     res.json({ success: true, data: locations });
   },
 
+  async tree(_req: Request, res: Response) {
+    const tree = await LocationModel.findTree();
+    res.json({ success: true, data: tree });
+  },
+
   async getById(req: Request, res: Response) {
     const location = await LocationModel.findById(Number(req.params.id));
     if (!location) throw new AppError(404, 'Location not found');

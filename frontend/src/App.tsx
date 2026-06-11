@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Plants from './pages/Plants';
 import PlantDetail from './pages/PlantDetail';
 import Locations from './pages/Locations';
+import Sensors from './pages/Sensors';
 import AIDiagnostics from './pages/AIDiagnostics';
 import Settings from './pages/Settings';
 
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/plants" element={<Plants />} />
           <Route path="/plants/:id" element={<PlantDetail />} />
           <Route path="/locations" element={<Locations />} />
+          <Route path="/sensors" element={<Sensors />} />
           <Route path="/ai" element={<AIDiagnostics />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

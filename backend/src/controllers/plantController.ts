@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { PlantModel } from '../models/Plant';
+import { SettingModel } from '../models/Setting';
+import { lookupScientificName } from '../services/scientificNameService';
 import { AppError } from '../middleware/errorHandler';
 
 export const plantController = {
@@ -25,7 +27,21 @@ export const plantController = {
 
   async create(req: Request, res: Response) {
     const plant = await PlantModel.create(req.body);
-    res.status(201).json({ success: true, data: plant });
+
+    let finalPlant = plant;
+    if (!plant.scientific_name && plant.name) {
+      try {
+        const settings = await SettingModel.getFullMap();
+        const sciName = await lookupScientificName(plant.name, settings);
+        if (sciName) {
+          finalPlant = (await PlantModel.update(plant.id, { scientific_name: sciName })) ?? plant;
+        }
+      } catch {
+        // non-fatal — plant was created, scientific name lookup failed
+      }
+    }
+
+    res.status(201).json({ success: true, data: finalPlant });
   },
 
   async update(req: Request, res: Response) {

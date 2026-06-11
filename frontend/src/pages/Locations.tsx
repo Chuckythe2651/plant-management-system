@@ -107,6 +107,11 @@ export default function Locations() {
 
               <div className="mt-3 space-y-1 text-sm text-gray-600">
                 <p className="capitalize font-medium text-plant-700">{loc.type}</p>
+                {loc.parent_id && (
+                  <p className="text-xs text-gray-400">
+                    ↳ {locations.find((l: Location) => l.id === loc.parent_id)?.name ?? 'Unknown parent'}
+                  </p>
+                )}
                 {loc.description && <p className="text-gray-500 text-xs">{loc.description}</p>}
                 <p className="text-xs text-gray-400">{loc.city}, {loc.state} {loc.zip_code}</p>
               </div>
@@ -162,6 +167,17 @@ export default function Locations() {
                 <label className="label">Longitude</label>
                 <input type="number" step="any" {...register('longitude', { valueAsNumber: true })} className="input" />
               </div>
+            </div>
+            <div>
+              <label className="label">Parent Location (optional)</label>
+              <select {...register('parent_id', { setValueAs: (v) => v ? Number(v) : null })} className="input">
+                <option value="">None (top-level)</option>
+                {locations
+                  .filter((l: Location) => !editLoc || l.id !== editLoc.id)
+                  .map((l: Location) => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+              </select>
             </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="is_default" {...register('is_default')} className="w-4 h-4 accent-plant-600" />

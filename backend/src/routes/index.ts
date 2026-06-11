@@ -6,6 +6,7 @@ import aiRoutes from './ai';
 import settingsRoutes from './settings';
 import knowledgeRoutes from './knowledge';
 import uploadRoutes from './uploads';
+import sensorRoutes from './sensors';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/ai', aiRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/knowledge', knowledgeRoutes);
 router.use('/uploads', uploadRoutes);
+router.use('/sensors', sensorRoutes);
 
 export default router;
