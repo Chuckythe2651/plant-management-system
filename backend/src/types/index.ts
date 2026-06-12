@@ -45,6 +45,10 @@ export interface Plant {
   perenual_id?: number;
   acquired_date?: Date;
   is_favorite: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  floor_plan_x?: number | null;
+  floor_plan_y?: number | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -128,6 +132,10 @@ export interface UpdatePlantDto extends Partial<CreatePlantDto> {
   last_watered_at?: string;
   next_watering_at?: string;
   last_fertilized_at?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  floor_plan_x?: number | null;
+  floor_plan_y?: number | null;
 }
 
 export interface CreateLocationDto {

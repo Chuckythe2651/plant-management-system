@@ -8,6 +8,8 @@ import Locations from './pages/Locations';
 import Sensors from './pages/Sensors';
 import AIDiagnostics from './pages/AIDiagnostics';
 import Settings from './pages/Settings';
+import OutdoorMapPage from './pages/OutdoorMapPage';
+import IndoorMapPage from './pages/IndoorMapPage';
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -60,6 +62,8 @@ export default function App() {
           <Route path="/sensors" element={<Sensors />} />
           <Route path="/ai" element={<AIDiagnostics />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/map/outdoor" element={<OutdoorMapPage />} />
+          <Route path="/map/indoor" element={<IndoorMapPage />} />
         </Routes>
       </RouteErrorBoundary>
     </Layout>

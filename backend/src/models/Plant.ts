@@ -109,6 +109,7 @@ export const PlantModel = {
       'sunlight_requirement','temperature_min_f','temperature_max_f',
       'notes','image_url','acquired_date','is_favorite',
       'last_watered_at','next_watering_at','last_fertilized_at',
+      'latitude','longitude','floor_plan_x','floor_plan_y',
     ];
 
     for (const key of allowed) {
