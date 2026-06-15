@@ -1,9 +1,12 @@
 -- Smart Home Plant Management System — Database Schema
 -- PostgreSQL 16+
+-- Single consolidated schema — no separate migrations needed for fresh installs.
 
--- Migrations tracking table
+-- ─────────────────────────────────────────────────────────
+-- MIGRATIONS TRACKING
+-- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS schema_migrations (
-  version VARCHAR(50) PRIMARY KEY,
+  version    VARCHAR(50) PRIMARY KEY,
   applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -21,44 +24,50 @@ CREATE TABLE IF NOT EXISTS locations (
   latitude    DECIMAL(9,6) DEFAULT 33.3062,
   longitude   DECIMAL(9,6) DEFAULT -111.8413,
   is_default  BOOLEAN      DEFAULT FALSE,
+  parent_id   INTEGER REFERENCES locations(id) ON DELETE SET NULL,
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_locations_type ON locations(type);
+CREATE INDEX idx_locations_type   ON locations(type);
+CREATE INDEX idx_locations_parent ON locations(parent_id);
 
 -- ─────────────────────────────────────────────────────────
 -- PLANTS
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS plants (
-  id                        SERIAL PRIMARY KEY,
-  name                      VARCHAR(255) NOT NULL,
-  common_name               VARCHAR(255),
-  scientific_name           VARCHAR(255),
-  location_id               INTEGER REFERENCES locations(id) ON DELETE SET NULL,
-  plant_type                VARCHAR(100),  -- succulent, tropical, herb, fern, tree, etc.
-  health_status             VARCHAR(50) DEFAULT 'good'
-                              CHECK (health_status IN ('excellent','good','fair','poor','critical','unknown')),
-  watering_frequency_days   INTEGER DEFAULT 7,
-  last_watered_at           TIMESTAMP WITH TIME ZONE,
-  next_watering_at          TIMESTAMP WITH TIME ZONE,
-  last_fertilized_at        TIMESTAMP WITH TIME ZONE,
+  id                         SERIAL PRIMARY KEY,
+  name                       VARCHAR(255) NOT NULL,
+  common_name                VARCHAR(255),
+  scientific_name            VARCHAR(255),
+  location_id                INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+  plant_type                 VARCHAR(100),
+  health_status              VARCHAR(50) DEFAULT 'good'
+                               CHECK (health_status IN ('excellent','good','fair','poor','critical','unknown')),
+  watering_frequency_days    INTEGER DEFAULT 7,
+  last_watered_at            TIMESTAMP WITH TIME ZONE,
+  next_watering_at           TIMESTAMP WITH TIME ZONE,
+  last_fertilized_at         TIMESTAMP WITH TIME ZONE,
   fertilizing_frequency_days INTEGER DEFAULT 30,
-  sunlight_requirement      VARCHAR(50)
-                              CHECK (sunlight_requirement IN ('full_sun','partial_shade','indirect_light','full_shade',NULL)),
-  temperature_min_f         INTEGER,
-  temperature_max_f         INTEGER,
-  notes                     TEXT,
-  image_url                 VARCHAR(500),
-  perenual_id               INTEGER,
-  acquired_date             DATE,
-  is_favorite               BOOLEAN DEFAULT FALSE,
-  created_at                TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at                TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  sunlight_requirement       VARCHAR(50)
+                               CHECK (sunlight_requirement IN ('full_sun','partial_shade','indirect_light','full_shade',NULL)),
+  temperature_min_f          INTEGER,
+  temperature_max_f          INTEGER,
+  notes                      TEXT,
+  image_url                  VARCHAR(500),
+  perenual_id                INTEGER,
+  acquired_date              DATE,
+  is_favorite                BOOLEAN DEFAULT FALSE,
+  latitude                   DECIMAL(9,6),
+  longitude                  DECIMAL(9,6),
+  floor_plan_x               DECIMAL(6,3),
+  floor_plan_y               DECIMAL(6,3),
+  created_at                 TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at                 TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_plants_location ON plants(location_id);
-CREATE INDEX idx_plants_health ON plants(health_status);
+CREATE INDEX idx_plants_location      ON plants(location_id);
+CREATE INDEX idx_plants_health        ON plants(health_status);
 CREATE INDEX idx_plants_next_watering ON plants(next_watering_at);
 
 -- ─────────────────────────────────────────────────────────
@@ -70,14 +79,14 @@ CREATE TABLE IF NOT EXISTS care_logs (
   care_type    VARCHAR(50) NOT NULL
                  CHECK (care_type IN ('watering','fertilizing','pruning','repotting','pest_treatment','observation','other')),
   notes        TEXT,
-  amount_ml    INTEGER,     -- for watering: ml of water used
-  product_used VARCHAR(255), -- fertilizer/pesticide product name
+  amount_ml    INTEGER,
+  product_used VARCHAR(255),
   performed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_care_logs_plant ON care_logs(plant_id);
-CREATE INDEX idx_care_logs_type ON care_logs(care_type);
+CREATE INDEX idx_care_logs_plant     ON care_logs(plant_id);
+CREATE INDEX idx_care_logs_type      ON care_logs(care_type);
 CREATE INDEX idx_care_logs_performed ON care_logs(performed_at DESC);
 
 -- ─────────────────────────────────────────────────────────
@@ -94,32 +103,53 @@ CREATE TABLE IF NOT EXISTS plant_knowledge (
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_plant_knowledge_plant ON plant_knowledge(plant_id);
+CREATE INDEX idx_plant_knowledge_plant  ON plant_knowledge(plant_id);
 CREATE INDEX idx_plant_knowledge_source ON plant_knowledge(source, external_id);
-CREATE INDEX idx_plant_knowledge_data ON plant_knowledge USING GIN(data);
+CREATE INDEX idx_plant_knowledge_data   ON plant_knowledge USING GIN(data);
 
 -- ─────────────────────────────────────────────────────────
 -- LLM INTERACTIONS
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS llm_interactions (
-  id             SERIAL PRIMARY KEY,
-  plant_id       INTEGER REFERENCES plants(id) ON DELETE SET NULL,
-  llm_provider   VARCHAR(50)  NOT NULL CHECK (llm_provider IN ('ollama','openai','anthropic')),
-  llm_model      VARCHAR(100),
-  prompt_type    VARCHAR(50)  NOT NULL CHECK (prompt_type IN ('diagnosis','identification','care_advice','pest_treatment','general')),
-  user_input     TEXT,
-  image_url      VARCHAR(500),
-  response       TEXT,
-  structured     JSONB,        -- parsed structured data from LLM response
-  tokens_used    INTEGER,
-  cost_estimate  DECIMAL(10,6),
-  duration_ms    INTEGER,
-  created_at     TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id            SERIAL PRIMARY KEY,
+  plant_id      INTEGER REFERENCES plants(id) ON DELETE SET NULL,
+  llm_provider  VARCHAR(50)  NOT NULL
+                  CHECK (llm_provider IN ('ollama','openai','anthropic','openrouter')),
+  llm_model     VARCHAR(100),
+  prompt_type   VARCHAR(50)  NOT NULL
+                  CHECK (prompt_type IN ('diagnosis','identification','care_advice','pest_treatment','general')),
+  user_input    TEXT,
+  image_url     VARCHAR(500),
+  response      TEXT,
+  structured    JSONB,
+  tokens_used   INTEGER,
+  cost_estimate DECIMAL(10,6),
+  duration_ms   INTEGER,
+  created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_llm_plant ON llm_interactions(plant_id);
+CREATE INDEX idx_llm_plant    ON llm_interactions(plant_id);
 CREATE INDEX idx_llm_provider ON llm_interactions(llm_provider);
-CREATE INDEX idx_llm_created ON llm_interactions(created_at DESC);
+CREATE INDEX idx_llm_created  ON llm_interactions(created_at DESC);
+
+-- ─────────────────────────────────────────────────────────
+-- SENSORS (Home Assistant integration)
+-- ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sensors (
+  id              SERIAL PRIMARY KEY,
+  location_id     INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+  name            VARCHAR(255) NOT NULL,
+  sensor_type     VARCHAR(50)  NOT NULL
+                    CHECK (sensor_type IN ('soil_moisture','soil_temperature','air_temperature','lumens')),
+  ha_entity_id    VARCHAR(255) NOT NULL,
+  unit            VARCHAR(30),
+  last_value      DECIMAL(10,4),
+  last_reading_at TIMESTAMP WITH TIME ZONE,
+  created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_sensors_location ON sensors(location_id);
 
 -- ─────────────────────────────────────────────────────────
 -- SETTINGS
@@ -156,8 +186,15 @@ CREATE TRIGGER trg_plants_updated_at
   BEFORE UPDATE ON plants
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+CREATE TRIGGER trg_sensors_updated_at
+  BEFORE UPDATE ON sensors
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 CREATE TRIGGER trg_settings_updated_at
   BEFORE UPDATE ON settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-INSERT INTO schema_migrations (version) VALUES ('001_initial_schema');
+-- ─────────────────────────────────────────────────────────
+-- VERSION MARKER
+-- ─────────────────────────────────────────────────────────
+INSERT INTO schema_migrations (version) VALUES ('001_consolidated');
