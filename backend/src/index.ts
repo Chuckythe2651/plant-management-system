@@ -7,6 +7,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config';
 import { pool } from './config/database';
+import { runMigrations } from './config/migrate';
 import { errorHandler } from './middleware/errorHandler';
 import apiRoutes from './routes';
 
@@ -65,10 +66,13 @@ async function start() {
       console.log('[db] Connected to PostgreSQL');
       break;
     } catch (err) {
+      if (retries === 0) throw err;
       console.log(`[db] Waiting for PostgreSQL... (${retries} retries left)`);
       await new Promise((r) => setTimeout(r, 3000));
     }
   }
+
+  await runMigrations();
 
   app.listen(config.port, '0.0.0.0', () => {
     console.log(`[api] Server running on port ${config.port}`);
