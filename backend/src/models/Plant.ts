@@ -10,6 +10,11 @@ interface FindAllOptions {
   search?: string;
 }
 
+function orNull<T>(v: T | null | undefined): T | null {
+  if (v === null || v === undefined || v === '') return null;
+  return v;
+}
+
 export const PlantModel = {
   async findAll(opts: FindAllOptions = {}): Promise<Plant[]> {
     const { locationId, limit, plant_type, health_status, is_favorite, search } = opts;
@@ -79,19 +84,19 @@ export const PlantModel = {
        RETURNING *`,
       [
         dto.name,
-        dto.common_name ?? null,
-        dto.scientific_name ?? null,
-        dto.location_id ?? null,
-        dto.plant_type ?? null,
+        orNull(dto.common_name),
+        orNull(dto.scientific_name),
+        orNull(dto.location_id),
+        orNull(dto.plant_type),
         dto.health_status ?? 'good',
         dto.watering_frequency_days ?? 7,
         dto.fertilizing_frequency_days ?? 30,
-        dto.sunlight_requirement ?? null,
-        dto.temperature_min_f ?? null,
-        dto.temperature_max_f ?? null,
-        dto.notes ?? null,
-        dto.image_url ?? null,
-        dto.acquired_date ?? null,
+        orNull(dto.sunlight_requirement),
+        orNull(dto.temperature_min_f),
+        orNull(dto.temperature_max_f),
+        orNull(dto.notes),
+        orNull(dto.image_url),
+        orNull(dto.acquired_date),
         dto.is_favorite ?? false,
       ]
     );
@@ -111,10 +116,16 @@ export const PlantModel = {
       'last_watered_at','next_watering_at','last_fertilized_at',
     ];
 
+    const nullableFields = new Set<keyof UpdatePlantDto>([
+      'common_name','scientific_name','location_id','plant_type',
+      'sunlight_requirement','temperature_min_f','temperature_max_f',
+      'notes','image_url','acquired_date','last_watered_at','next_watering_at','last_fertilized_at',
+    ]);
+
     for (const key of allowed) {
       if (key in dto) {
         fields.push(`${key} = $${idx++}`);
-        values.push(dto[key]);
+        values.push(nullableFields.has(key) ? orNull(dto[key]) : dto[key]);
       }
     }
 

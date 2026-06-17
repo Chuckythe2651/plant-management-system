@@ -136,29 +136,72 @@ export default function Settings() {
                       <div key={s.key}>
                         <div className="flex items-center justify-between mb-1">
                           <label className="label mb-0">{s.label ?? s.key}</label>
-                          {isDirty && <span className="text-xs text-amber-600 font-medium">Modified</span>}
+                          {isDirty && edits[s.key] === '' && s.is_secret && s.value === '***configured***'
+                          ? <span className="text-xs text-red-500 font-medium">Will be cleared</span>
+                          : isDirty && <span className="text-xs text-amber-600 font-medium">Modified</span>
+                        }
                         </div>
                         {s.description && (
                           <p className="text-xs text-gray-500 mb-1">{s.description}</p>
                         )}
-                        <div className="relative">
-                          <input
-                            type={s.is_secret && !showSecrets[s.key] ? 'password' : 'text'}
-                            value={currentVal}
-                            onChange={(e) => handleChange(s.key, e.target.value)}
-                            placeholder={s.value === '***configured***' ? '(configured — enter new value to change)' : ''}
-                            className={`input pr-10 ${isDirty ? 'border-amber-300 ring-1 ring-amber-200' : ''}`}
-                          />
-                          {s.is_secret && (
-                            <button
-                              type="button"
-                              onClick={() => setShowSecrets((prev) => ({ ...prev, [s.key]: !prev[s.key] }))}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-                            >
-                              {showSecrets[s.key] ? '🙈' : '👁'}
-                            </button>
-                          )}
-                        </div>
+                        {(() => {
+                          const isConfigured = s.is_secret && s.value === '***configured***';
+                          const isClearing = isConfigured && isDirty && edits[s.key] === '';
+                          const placeholder = isClearing
+                            ? '(will be cleared on save)'
+                            : isConfigured
+                            ? '(configured — enter new value to change)'
+                            : '';
+                          const inputClass = `input pr-20 ${
+                            isClearing
+                              ? 'border-red-300 ring-1 ring-red-200'
+                              : isDirty
+                              ? 'border-amber-300 ring-1 ring-amber-200'
+                              : ''
+                          }`;
+                          return (
+                            <div className="relative">
+                              <input
+                                type={s.is_secret && !showSecrets[s.key] ? 'password' : 'text'}
+                                value={currentVal}
+                                onChange={(e) => handleChange(s.key, e.target.value)}
+                                placeholder={placeholder}
+                                className={inputClass}
+                              />
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                {s.is_secret && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowSecrets((prev) => ({ ...prev, [s.key]: !prev[s.key] }))}
+                                    className="text-gray-400 hover:text-gray-600 text-xs"
+                                  >
+                                    {showSecrets[s.key] ? '🙈' : '👁'}
+                                  </button>
+                                )}
+                                {isConfigured && !isClearing && (
+                                  <button
+                                    type="button"
+                                    title="Clear this key"
+                                    onClick={() => handleChange(s.key, '')}
+                                    className="text-gray-400 hover:text-red-500 text-xs font-bold leading-none"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                                {isClearing && (
+                                  <button
+                                    type="button"
+                                    title="Undo clear"
+                                    onClick={() => setEdits((prev) => { const n = { ...prev }; delete n[s.key]; return n; })}
+                                    className="text-red-400 hover:text-gray-500 text-xs font-bold leading-none"
+                                  >
+                                    ↩
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
