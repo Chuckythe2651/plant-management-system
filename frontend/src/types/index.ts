@@ -68,6 +68,10 @@ export interface Plant {
   image_url?: string;
   acquired_date?: string;
   is_favorite: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  floor_plan_x?: number | null;
+  floor_plan_y?: number | null;
   created_at: string;
   updated_at: string;
 }

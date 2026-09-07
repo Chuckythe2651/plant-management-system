@@ -7,6 +7,7 @@ import settingsRoutes from './settings';
 import knowledgeRoutes from './knowledge';
 import uploadRoutes from './uploads';
 import sensorRoutes from './sensors';
+import mapsRoutes from './maps';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/settings', settingsRoutes);
 router.use('/knowledge', knowledgeRoutes);
 router.use('/uploads', uploadRoutes);
 router.use('/sensors', sensorRoutes);
+router.use('/maps', mapsRoutes);
 
 export default router;

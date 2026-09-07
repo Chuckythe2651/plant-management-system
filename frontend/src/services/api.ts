@@ -126,6 +126,20 @@ export const settingsApi = {
     api.get<ApiResponse<HealthCheckData>>('/settings/health').then((r) => r.data.data!),
 };
 
+// ── Maps ──────────────────────────────────────────────────────
+export const mapsApi = {
+  getFloorPlan: () =>
+    api.get<ApiResponse<{ url: string | null }>>('/maps/floor-plan').then((r) => r.data.data!),
+
+  uploadFloorPlan: (file: File) => {
+    const fd = new FormData();
+    fd.append('image', file);
+    return api.post<ApiResponse<{ url: string }>>('/maps/floor-plan', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data.data!);
+  },
+};
+
 // ── Knowledge ─────────────────────────────────────────────────
 export const knowledgeApi = {
   search: (q: string) =>
